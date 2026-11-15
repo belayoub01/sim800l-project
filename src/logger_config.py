@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-
+from logging.handlers import RotatingFileHandler
 
 def setup_logger(settings_path="config/settings.json"):
     settings = json.loads(Path(settings_path).read_text(encoding="utf-8"))

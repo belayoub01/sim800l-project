@@ -19,3 +19,6 @@ backups/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local settings
+config/settings.json

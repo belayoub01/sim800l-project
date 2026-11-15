@@ -13,6 +13,12 @@ FILENAME_PATTERN = re.compile(
 )
 
 
+def mask_number(number):
+    if len(number) <= 4:
+        return "****"
+    return number[:4] + "*" * (len(number) - 6) + number[-2:]
+
+
 def process_inbox(inbox_path, database_path):
     inbox = Path(inbox_path)
     if not inbox.is_dir():
@@ -45,7 +51,9 @@ def process_inbox(inbox_path, database_path):
 
             if inserted:
                 processed += 1
-                logger.info("Saved SMS from %s at %s", sender, received_at)
+                logger.info(
+                    "Saved SMS from %s at %s", mask_number(sender), received_at
+                )
 
         except (OSError, UnicodeError, ValueError):
             logger.exception("Could not read %s", file_path.name)

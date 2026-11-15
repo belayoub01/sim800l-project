@@ -1,0 +1,7 @@
+{
+    "inbox_path": "/var/spool/gammu/inbox",
+    "database_path": "data/messages.db",
+    "log_path": "logs/app.log",
+    "poll_interval": 5,
+    "sender_command": "/usr/bin/gammu-smsd-inject"
+}
