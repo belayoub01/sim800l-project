@@ -1,102 +1,96 @@
 # SIM800L SMS Gateway
 
-## Project Overview
+A small SMS gateway built on a **Raspberry Pi 4** and a **SIM800L** GSM modem. Incoming messages are received through **Gammu SMSD**, processed by a **Python** service, and stored in **SQLite**. The Pi talks to the mobile network directly, so no smartphone is needed.
 
-A Python-based SMS gateway running on Raspberry Pi 4.
-It uses a SIM800L GSM module, Gammu SMSD, and SQLite.
+## Features
 
-The system receives SMS messages, processes them with Python,
-and stores message records in an SQLite database.
+- Receive SMS through Gammu SMSD and store them in a local SQLite database
+- Duplicate protection (one row per Gammu inbox file)
+- Send SMS through `gammu-smsd-inject`
+- Phone numbers masked in logs, rotating log file
+- Runs as a `systemd` service and restarts automatically after a crash or reboot
+- Automated tests with `pytest`
 
-## Hardware
+## How it works
 
-- Raspberry Pi 4 Model B
-- SIM800L HW-748 GSM module
-- UART serial connection
-- Suitable power supply for SIM800L
+```
+Phone <-> Mobile network <-> SIM800L <-UART-> Raspberry Pi
+                                               |
+                                      Gammu SMSD (inbox files)
+                                               |
+                                  Python service (src/main.py)
+                                               |
+                                      SQLite (data/messages.db)
+```
 
-## Software
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for details.
 
-- Raspberry Pi OS / Linux
-- Python
-- Gammu and Gammu SMSD
-- SQLite
-- systemd
+## Requirements
 
-## Project Structure
+- Raspberry Pi 4 with Raspberry Pi OS (Linux)
+- SIM800L module with a **stable power supply** (see [docs/HARDWARE.md](docs/HARDWARE.md))
+- Active SIM card
+- Gammu and gammu-smsd, Python 3, SQLite
 
-- config/settings.json: local configuration
-- data/messages.db: SQLite database
-- logs/app.log: application log
-- src/main.py: application entry point
-- src/sms_receiver.py: SMS receiving logic
-- src/sms_sender.py: SMS sending logic
-- src/message_handler.py: message processing
-- src/logger_config.py: logging configuration
-- tests/: automated tests
-- backups/: project backup archives
+## Quick start
 
-## Database
+```bash
+git clone git@github.com:belayoub01/sim800l-project.git
+cd sim800l-project
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp config/settings.example.json config/settings.json
+python src/main.py
+```
 
-The database is stored at data/messages.db.
-The messages table stores message details, including sender,
-message text, received time, source file, and processing time.
+Full setup (Gammu, systemd): [docs/INSTALLATION.md](docs/INSTALLATION.md)
 
-Check database integrity with:
+## Configuration
 
-    sqlite3 data/messages.db "PRAGMA integrity_check;"
+`config/settings.json` (a template is provided in `config/settings.example.json`):
 
-## Services
+| Key | Meaning |
+|---|---|
+| `inbox_path` | Gammu SMSD inbox directory (default `/var/spool/gammu/inbox`) |
+| `database_path` | SQLite file (relative paths are resolved from the project root) |
+| `log_path` | Application log file |
+| `poll_interval` | Seconds between inbox scans |
+| `sender_command` | Path to `gammu-smsd-inject` |
 
-The project uses these systemd services:
+## Sending an SMS
 
-- gammu-smsd.service
-- sim800l-project.service
+```python
+from sms_sender import send_sms
+send_sms("+213XXXXXXXXX", "Hello from Raspberry Pi")
+```
 
-Check service status with:
+## Running the tests
 
-    sudo systemctl status gammu-smsd.service --no-pager
-    sudo systemctl status sim800l-project.service --no-pager
+```bash
+python3 -m pytest -v
+```
 
-View recent application logs with:
+## Project structure
 
-    tail -n 50 logs/app.log
+```
+src/        main.py, sms_receiver.py, sms_sender.py, message_handler.py, logger_config.py
+tests/      pytest tests
+config/     settings.example.json
+data/       SQLite database (not committed)
+docs/       hardware, installation, architecture, database, troubleshooting
+```
 
-## Testing
+## Privacy and security
 
-Activate the virtual environment:
+- `data/*.db`, `config/settings.json`, `logs/` and `.venv/` are git-ignored.
+- Never commit tokens, PINs or real message content.
 
-    source .venv/bin/activate
+## Limitations
 
-Run the existing tests:
+- No web interface or API yet.
+- Reliability over long periods has been tested only briefly (reboot and crash recovery).
 
-    python -m pytest -v
+## License
 
-## Backups
-
-Create a compressed backup from the project directory:
-
-    tar --exclude='./.venv' --exclude='./backups' --exclude='./.git' -czf "backups/sim800l-project-$(date +%F-%H%M%S).tar.gz" .
-
-Check an archive with:
-
-    tar -tzf backups/ARCHIVE_NAME.tar.gz
-
-Keep a second backup on separate storage.
-Backups may contain private messages and configuration data.
-
-## Security
-
-Do not publish private settings, phone numbers, message contents,
-database files, or logs in a public repository.
-
-## Current Status
-
-The application has successfully saved multiple test SMS messages
-to SQLite. The application log recorded the saved messages.
-
-A backup archive was created and extracted into a separate
-directory. SQLite integrity checking returned "ok".
-
-Further work includes reviewing duplicate-message handling,
-documenting the exact local configuration, and improving tests.
+See [LICENSE](LICENSE).
